@@ -1,0 +1,32 @@
+# 依赖
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# 数据产物：全部由 tools/setup.mjs 从「本机 Minecraft + 公开数据源」生成
+# 其中 mojangles.json / block-*.json 派生自 Mojang 的游戏资源，不入库以免再分发
+data/glyphs/*.json
+data/glyphs/*.bin.gz
+data/block-shapes.json
+data/block-names-zh.json
+data/block-colors.json
+data/blocks-by-version.json
+
+# 构建与临时产物
+tmp/
+dist/
+web/slogan-tool.html
+*.litematic
+*.log
+
+# 本机快捷方式（含绝对路径，不应入库；用 npm run shortcut 重新生成）
+*.lnk
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

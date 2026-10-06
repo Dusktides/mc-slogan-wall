@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minecraft 标语投影生成器</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1c1f26; --panel2: #232733; --line: #333a49;
+    --text: #e6e9f0; --dim: #98a0b3; --accent: #7cc4ff; --ok: #6ee7a8; --warn: #ffcf70;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.55 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  header { padding: 16px 22px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: .3px; }
+  header p { margin: 4px 0 0; color: var(--dim); font-size: 12.5px; }
+  main { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 16px; padding: 16px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: .5px; }
+  label { display: block; margin: 10px 0 4px; font-size: 12.5px; color: var(--dim); }
+  textarea, input[type=text], input[type=number], select {
+    width: 100%; padding: 7px 9px; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 7px; font: inherit;
+  }
+  textarea { min-height: 68px; resize: vertical; font-family: "Microsoft YaHei", monospace; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  button {
+    padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel2); color: var(--text); font: inherit; cursor: pointer;
+  }
+  button.primary { background: #2f6df6; border-color: #2f6df6; color: #fff; font-weight: 600; }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  .hint { color: var(--dim); font-size: 12px; margin-top: 6px; }
+  .err { color: #ff8b8b; font-size: 12.5px; margin-top: 8px; white-space: pre-wrap; }
+  .ok { color: var(--ok); }
+  .warn { color: var(--warn); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin-top: 12px; }
+  .stat { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 16px; font-weight: 600; }
+  .stat span { color: var(--dim); font-size: 11.5px; }
+  .canvas-wrap { overflow: auto; height: 56vh; min-height: 220px; border: 1px solid var(--line); border-radius: 8px; background: #0d0f13; }
+  canvas { display: block; image-rendering: pixelated; }
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .toolbar .grow { flex: 1; }
+  .mono { font-family: Consolas, "Courier New", monospace; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #0006; vertical-align: -1px; margin-right: 5px; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Minecraft 标语投影生成器</h1>
+  <p>ASCII 用原版 Mojangles 字形（从 26.3 客户端提取）· 汉字用 GNU Unifont 16×16 · 输出 Litematica <span class="mono">.litematic</span>（厚度 1 格）</p>
+</header>
+
+<main>
+  <div>
+    <div class="card">
+      <h2>文字与版本</h2>
+      <label for="text">标语文本（可换行）</label>
+      <textarea id="text">科学技术是第一生产力</textarea>
+
+      <label for="version">目标游戏版本 <span id="versionNote" class="hint"></span></label>
+      <select id="version"></select>
+      <div class="hint" id="versionInfo"></div>
+
+      <div class="row">
+        <div>
+          <label for="bgFilter">背景材质</label>
+          <input type="text" id="bgFilter" placeholder="搜索方块…">
+          <select id="bg" size="7"></select>
+        </div>
+        <div>
+          <label for="fgFilter">字体材质</label>
+          <input type="text" id="fgFilter" placeholder="搜索方块…">
+          <select id="fg" size="7"></select>
+        </div>
+      </div>
+      <label for="blockScope">候选范围</label>
+      <select id="blockScope">
+        <option value="recommended">仅完整方块（推荐：混凝土/羊毛/陶瓦/石材/金属/原木木板…）</option>
+        <option value="all">全部方块（含台阶/栅栏/门/植物/火把等不完整方块）</option>
+      </select>
+      <div class="hint" id="blockInfo"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>布局参数</h2>
+      <div class="row3">
+        <div><label for="spacing">字间距（方块）</label><input type="number" id="spacing" value="1" min="0" max="64"></div>
+        <div><label for="border">距边框（方块）</label><input type="number" id="border" value="0" min="0" max="64"></div>
+        <div><label for="lineGap">行距（方块）</label><input type="number" id="lineGap" value="1" min="0" max="64"></div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="spacingMode">字间距语义</label>
+          <select id="spacingMode">
+            <option value="gap">gap：字形之间实际空格数</option>
+            <option value="advance">advance：叠加在原版字距上</option>
+          </select>
+        </div>
+        <div>
+          <label for="align">多行对齐</label>
+          <select id="align">
+            <option value="center">居中</option>
+            <option value="left">左对齐</option>
+            <option value="right">右对齐</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div><label for="dotBlocks">每点占方块数</label><input type="number" id="dotBlocks" value="1" min="1" max="8"></div>
+        <div>
+          <label for="latinDots">拉丁像素放大</label>
+          <select id="latinDots">
+            <option value="auto">auto（含汉字时 2）</option>
+            <option value="1">1（拉丁 8 格高）</option>
+            <option value="2">2（与汉字等高）</option>
+          </select>
+        </div>
+      </div>
+      <label><input type="checkbox" id="trim"> 裁掉四周全空的边</label>
+      <label><input type="checkbox" id="noAir"> 材质表中不保留空气</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <strong id="sizeLabel" class="mono">—</strong>
+      <span class="grow"></span>
+      <label style="margin:0;color:var(--dim)">预览缩放
+        <input type="range" id="zoom" min="1" max="24" value="6" style="width:110px;vertical-align:middle">
+        <span id="zoomNote" class="mono" style="display:inline-block;min-width:96px"></span>
+      </label>
+      <button id="download" class="primary">下载 .litematic</button>
+    </div>
+    <div class="canvas-wrap"><canvas id="cv" width="10" height="10"></canvas></div>
+    <div class="stats" id="stats"></div>
+    <div class="err" id="err"></div>
+    <details>
+      <summary>这是什么？如何导入游戏</summary>
+      <div class="hint">
+        生成的是 Litematica 模组的投影文件：把 <span class="mono">.litematic</span> 放进
+        <span class="mono">.minecraft/schematics/</span>（或游戏内 M 菜单 → 投影管理器载入），
+        用「投影放置」工具贴到世界里即可按格建造。墙面厚度恒为 1 格，Y 轴正方向与游戏一致。
+        文件里的 <span class="mono">MinecraftDataVersion</span> 会随所选版本写入，避免低版本无法识别新高版本方块。
+      </div>
+    </details>
+  </div>
+</main>
+
+<script id="data-versions" type="application/json">__VERSIONS__</script>
+<script id="data-zh-names" type="application/json">__ZH_NAMES__</script>
+<script id="data-block-shapes" type="application/json">__BLOCK_SHAPES__</script>
+<script id="data-mojangles" type="application/json">__MOJANGLES__</script>
+<script id="data-unifont" type="application/base64">__UNIFONT__</script>
+<script type="module">
+/* ===================== 内置核心库（由 tools/build-preview.mjs 打包） ===================== */
+__CORE__
+/* ===================== 预览界面 ===================== */
+const BLOCK_COLORS = __BLOCK_COLORS__;
+
+const versionsData = JSON.parse(document.getElementById('data-versions').textContent);
+const mojanglesData = JSON.parse(document.getElementById('data-mojangles').textContent);
+const zhNamesData = JSON.parse(document.getElementById('data-zh-names').textContent);
+const shapesData = JSON.parse(document.getElementById('data-block-shapes').textContent);
+const unifontB64 = document.getElementById('data-unifont').textContent.trim();
+
+const catalog = createBlockCatalog(versionsData, zhNamesData, shapesData);
+let unifontLookup = null;
+let unifontError = null;
+
+// 解码 Unifont 二进制（gzip + base64）
+async function loadUnifont () {
+  try {
+    const bin = Uint8Array.from(atob(unifontB64), (c) => c.charCodeAt(0));
+    const ds = new DecompressionStream('gzip');
+    const stream = new Blob([bin]).stream().pipeThrough(ds);
+    const buf = new Uint8Array(await new Response(stream).arrayBuffer());
+    unifontLookup = parseUnifontBuffer(buf).lookup;
+  } catch (err) {
+    unifontError = err;
+  }
+}
+
+const $ = (id) => document.getElementById(id);
+const DOT = { mojangles: mojanglesData, unifontLookup: () => unifontLookup };
+
+/* ---------- 版本与方块选择 ---------- */
+function refillBlocks () {
+  fillBlocks('bg');
+  fillBlocks('fg');
+  updateBlockInfo();
+}
+
+function fillVersions () {
+  const sel = $('version');
+  sel.innerHTML = '';
+  for (const v of [...catalog.versions].reverse()) {
+    const o = document.createElement('option');
+    o.value = v.id;
+    o.textContent = `Minecraft ${v.id}  (data_version ${v.dataVersion})`;
+    sel.appendChild(o);
+  }
+  sel.value = catalog.latest;
+}
+
+function colorOf (name) {
+  const bare = String(name).replace(/^minecraft:/, '');
+  return BLOCK_COLORS[bare] || '#8a8f98';
+}
+
+function fillBlocks (which) {
+  const version = $('version').value;
+  const filter = $(which + 'Filter').value.trim().toLowerCase();
+  const scope = $('blockScope').value;
+  const sel = $(which);
+  const prev = sel.value;
+  const available = catalog.listFor(version, { scope });
+  const set = new Set(available);
+  sel.innerHTML = '';
+
+  const optionFor = (id) => {
+    const o = document.createElement('option');
+    o.value = 'minecraft:' + id;
+    const zh = catalog.zhNameOf(id);
+    const bad = scope === 'all' && catalog.shapeOf(id) !== 'complete';
+    o.textContent = (zh ? `${zh}（${id}）` : id) + (bad ? '  ⚠不完整' : '');
+    return o;
+  };
+
+  const groups = catalog.groupedFor(version, { search: filter, scope });
+  for (const g of groups) {
+    const og = document.createElement('optgroup');
+    og.label = `${g.label}（${g.ids.length}）`;
+    for (const id of g.ids) og.appendChild(optionFor(id));
+    sel.appendChild(og);
+  }
+
+  const fallback = which === 'bg' ? 'minecraft:red_concrete' : 'minecraft:white_concrete';
+  const hasOption = (value) => [...sel.querySelectorAll('option')].some((o) => o.value === value);
+  if (prev && set.has(prev.replace(/^minecraft:/, '')) && hasOption(prev)) sel.value = prev;
+  else if (hasOption(fallback)) sel.value = fallback;
+  else if (sel.querySelector('option')) sel.value = sel.querySelector('option').value;
+}
+
+function updateBlockInfo () {
+  const version = $('version').value;
+  const scope = $('blockScope').value;
+  const count = catalog.countFor(version, { scope });
+  const dv = catalog.dataVersionOf(version);
+  $('versionInfo').textContent = `${version} · 可选材质 ${count} 种 · MinecraftDataVersion = ${dv}`;
+  const bg = $('bg').value;
+  const fg = $('fg').value;
+  const label = (v) => {
+    const bare = v.replace(/^minecraft:/, '');
+    const zh = catalog.zhNameOf(bare);
+    const shape = catalog.shapeOf(bare);
+    return (zh ? `${zh}（${bare}）` : bare) + (shape === 'complete' ? '' : ' ⚠非完整');
+  };
+  $('blockInfo').innerHTML =
+    `<span class="swatch" style="background:${colorOf(bg)}"></span>背景 ${label(bg)}　` +
+    `<span class="swatch" style="background:${colorOf(fg)}"></span>字体 ${label(fg)}`;
+}
+
+/* ---------- 生成与预览 ---------- */
+let last = null;
+
+function currentOptions () {
+  return {
+    text: $('text').value,
+    version: $('version').value,
+    bg: $('bg').value,
+    fg: $('fg').value,
+    spacing: Number($('spacing').value) || 0,
+    spacingMode: $('spacingMode').value,
+    border: Number($('border').value) || 0,
+    lineGap: Number($('lineGap').value) || 0,
+    align: $('align').value,
+    dotBlocks: Math.max(1, Number($('dotBlocks').value) || 1),
+    latinDots: $('latinDots').value,
+    trim: $('trim').checked,
+    includeAir: !$('noAir').checked,
+    name: 'slogan',
+    author: 'mc-slogan-wall-web'
+  };
+}
+
+function generate () {
+  const err = $('err');
+  err.textContent = '';
+  const opts = currentOptions();
+  if (!opts.text) { err.textContent = '请输入标语文本'; return null; }
+
+  let layout
+  try {
+    const hasCjk = needsUnifontInText(opts.text, mojanglesData);
+    const latinDots = opts.latinDots === 'auto' ? (hasCjk ? 2 : 1) : Number(opts.latinDots);
+    if (hasCjk && !unifontLookup) {
+      err.textContent = unifontError ? ('汉字字形数据解压失败：' + unifontError.message) : '汉字字形数据尚未就绪…';
+      return null;
+    }
+    const glyphSet = createGlyphSet({ mojangles: mojanglesData, unifontLookup, latinDots })
+    layout = layoutText(opts.text, {
+      glyphSet, dotBlocks: opts.dotBlocks, spacing: opts.spacing,
+      spacingMode: opts.spacingMode, border: opts.border, lineGap: opts.lineGap,
+      align: opts.align, trimEmpty: opts.trim
+    })
+    const dataVersion = catalog.dataVersionOf(opts.version);
+    const built = buildLitematic({
+      layout, bgBlock: opts.bg, fgBlock: opts.fg, dataVersion,
+      name: opts.name, author: opts.author, includeAir: opts.includeAir
+    });
+    last = { layout, opts, built, latinDots, hasCjk };
+    if (layout.missing.length) {
+      err.innerHTML = `<span class="warn">⚠ 以下字符没有字形，已用占位方框代替：${layout.missing.join(' ')}</span>`;
+    }
+  } catch (e) {
+    err.textContent = e.message;
+    last = null;
+    draw();
+    updateStats();
+    return null;
+  }
+  draw();
+  updateStats();
+  return last;
+}
+
+function draw () {
+  const cv = $('cv');
+  const wrap = cv.parentElement;
+  const want = Number($('zoom').value);
+  if (!last) {
+    cv.width = 10; cv.height = 10;
+    cv.style.width = '10px'; cv.style.height = '10px';
+    $('zoomNote').textContent = '';
+    return;
+  }
+  const { layout, opts } = last;
+  // 自适应：先保证整面墙能塞进容器宽度，再受用户缩放上限约束
+  const fitW = Math.max(1, Math.floor((wrap.clientWidth - 4) / layout.width));
+  const fitH = Math.max(1, Math.floor((wrap.clientHeight - 4) / layout.height));
+  const zoom = Math.max(1, Math.min(want, fitW, Math.max(fitH, 1)));
+  cv.width = layout.width;
+  cv.height = layout.height;
+  cv.style.width = (layout.width * zoom) + 'px';
+  cv.style.height = (layout.height * zoom) + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = colorOf(opts.bg);
+  ctx.fillRect(0, 0, layout.width, layout.height);
+  ctx.fillStyle = colorOf(opts.fg);
+  for (let y = 0; y < layout.height; y++) {
+    for (let x = 0; x < layout.width; x++) {
+      if (layout.grid[y * layout.width + x]) ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  $('sizeLabel').textContent = `${layout.width} × ${layout.height} × 1`;
+  $('zoomNote').textContent = zoom === want ? `${zoom}×` : `${zoom}×（自适应，上限 ${want}×）`;
+}
+
+function updateStats () {
+  const box = $('stats');
+  if (!last) { box.innerHTML = ''; return; }
+  const { layout, built, opts, latinDots } = last;
+  const volume = layout.width * layout.height;
+  const bytes = built.bytes.length;
+  box.innerHTML = [
+    ['尺寸（X×Y×Z）', `${layout.width} × ${layout.height} × 1`],
+    ['总方块数', volume],
+    ['字体方块', layout.fontBlocks],
+    ['背景方块', volume - layout.fontBlocks],
+    ['每格位数', `${built.bits} bit`],
+    ['long 数量', built.longCount],
+    ['未压缩字节', bytes],
+    ['版本', `${opts.version} / dv ${catalog.dataVersionOf(opts.version)}`],
+    ['拉丁放大', latinDots]
+  ].map(([k, v]) => `<div class="stat"><b class="mono">${v}</b><span>${k}</span></div>`).join('');
+  $('download').disabled = false;
+}
+
+/* ---------- 下载 ---------- */
+async function gzip (bytes) {
+  if (typeof CompressionStream === 'undefined') return bytes; // 浏览器不支持时给出未压缩文件
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+$('download').addEventListener('click', async () => {
+  const cur = last || generate();
+  if (!cur) return;
+  const btn = $('download');
+  btn.disabled = true;
+  try {
+    const data = await gzip(cur.built.bytes);
+    const blob = new Blob([data], { type: 'application/octet-stream' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (cur.opts.name || 'slogan').replace(/[\\/:*?"<>|]/g, '_') + '.litematic';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* ---------- 事件绑定 ---------- */
+function bind () {
+  $('version').addEventListener('change', () => { refillBlocks(); generate(); });
+  $('blockScope').addEventListener('change', () => { refillBlocks(); generate(); });
+  for (const w of ['bg', 'fg']) {
+    $(w).addEventListener('change', () => { updateBlockInfo(); generate(); });
+    $(w + 'Filter').addEventListener('input', () => { fillBlocks(w); updateBlockInfo(); });
+  }
+  for (const id of ['text', 'spacing', 'border', 'lineGap', 'dotBlocks', 'latinDots', 'spacingMode', 'align', 'trim', 'noAir']) {
+    $(id).addEventListener('input', () => generate());
+    $(id).addEventListener('change', () => generate());
+  }
+  $('zoom').addEventListener('input', draw);
+}
+
+// 文本是否需要 Unifont（与 node 侧 needsUnifont 同逻辑，供浏览器使用）
+function needsUnifontInText (text, mojangles) {
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    if (cp === 10) continue;
+    if (mojangles.glyphs[cp] !== undefined) continue;
+    if (mojangles.advances && mojangles.advances[cp] !== undefined) continue;
+    return true;
+  }
+  return false;
+}
+
+(async function init () {
+  fillVersions();
+  await loadUnifont();
+  refillBlocks();
+  bind();
+  generate();
+})();
+</script>
+</body>
+</html>

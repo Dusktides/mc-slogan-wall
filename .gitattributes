@@ -1,0 +1,17 @@
+# 统一换行符，避免 Windows/Linux 协作时整文件 diff
+* text=auto eol=lf
+
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制
+*.png binary
+*.ico binary
+*.gz binary
+*.zip binary
+*.litematic binary
+
+# 生成物不入 diff 统计
+web/slogan-tool.html linguist-generated=true
+data/** linguist-generated=true

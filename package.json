@@ -1,0 +1,64 @@
+{
+  "name": "mc-slogan-wall",
+  "version": "1.2.0",
+  "description": "把任意文字还原成 Minecraft 里的方块标语墙，导出 Litematica 可直接载入的 .litematic 投影文件",
+  "type": "module",
+  "license": "MIT",
+  "main": "src/node/generate.mjs",
+  "bin": {
+    "mc-slogan": "src/cli.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "src",
+    "tools",
+    "web/template.html",
+    "start.cmd",
+    "slogan.cmd",
+    "assets/icon.ico",
+    "README.md",
+    "THIRD-PARTY.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "setup": "node tools/setup.mjs",
+    "setup:force": "node tools/setup.mjs --force",
+    "setup:check": "node tools/setup.mjs --check",
+    "build:blocks": "node tools/build-blocks-data.mjs",
+    "build:glyphs": "node tools/extract-mojangles.mjs && node tools/extract-unifont.mjs",
+    "build:names": "node tools/build-block-names.mjs",
+    "build:shapes": "node tools/build-block-shapes.mjs",
+    "build:colors": "node tools/build-block-colors.mjs",
+    "build:preview": "node tools/build-preview.mjs",
+    "icon": "node tools/make-icon.mjs",
+    "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/create-shortcut.ps1",
+    "measure": "node tools/measure.mjs",
+    "pack:release": "node tools/pack-release.mjs",
+    "test": "node test/run-tests.mjs"
+  },
+  "keywords": [
+    "minecraft",
+    "litematica",
+    "litematic",
+    "schematic",
+    "slogan",
+    "banner",
+    "pixel-font",
+    "mojangles",
+    "unifont",
+    "标语",
+    "投影"
+  ],
+  "author": "汐Dusktides (https://github.com/Dusktides)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dusktides/mc-slogan-wall.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Dusktides/mc-slogan-wall/issues"
+  },
+  "homepage": "https://github.com/Dusktides/mc-slogan-wall#readme",
+  "private": true
+}
